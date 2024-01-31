@@ -42,3 +42,20 @@ which will internally reduce the dataset from 3 to 2 dimensions using PCA.
 `iui::PrincipalComponentAnalysis` is defined in `pca.hpp` and requires [Eigen](https://github.com/libigl/eigen).
 
 Dimensionality reduction is entirely internal to the classifier and is transparent to the user.
+
+```python
+def createNode(int firstEntry, int lastEntry) -> Node:
+	if lastEntry - firstEntry < leafThreshold
+		return Leaf(firstEntry, lastEntry)
+
+	split := findSplit(firstEntry, lastEntry)
+	middleEntry := partition(firstEntry, lastEntry, split)
+
+	return InnerNode(
+		split = split,
+		leftChild = createNode(firstEntry, middleEntry)
+		rightChild = createNode(middleEntry, lastEntry)
+	)
+
+rootNode := createNode(0, entries.length())
+```

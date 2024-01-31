@@ -125,6 +125,7 @@ void simpleUsageExample(auto&& mnistTrain, auto&& mnistVal) {
 
 int main()
 {
+	constexpr int bruh = sizeof(typename iui::KDTree<int, 3, float>::Node);
 	printf("reading MNIST dataset...\n");
 	auto mnistTrain = readSampleFileMNIST("trainingsample.csv");
 	auto mnistVal = readSampleFileMNIST("validationsample.csv");

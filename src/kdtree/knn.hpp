@@ -6,31 +6,23 @@
 #include "kdtree.hpp"
 #include "metrics.hpp"
 
+#include <queue>
+#include <map>
+
 namespace iui {
 
 	namespace detail {
 
 		template<typename TLabel>
-		TLabel findMostCommonLabel(const std::vector<TLabel>& labels) {
-			auto it = labels.begin();
-			struct {
-				TLabel label;
-				int frequency = -1;
-			} bestSoFar;
-			while(it != labels.end()) {
-				auto current = *it;
-				auto next = std::find_if_not(it, labels.end(), [&](const TLabel& label) {
-					return label == current;
-				});
-				int freq = next - it;
-				if(freq > bestSoFar.frequency) {
-					bestSoFar.frequency = freq;
-					bestSoFar.label = current;
-				}
-				it = next;
+		struct LabelScore {
+			int frequency = 0;
+			double negTotalDistance = 0.0;
+			TLabel label {};
+
+			friend auto operator<=>(const LabelScore& lhs, const LabelScore& rhs) {
+				return std::make_tuple(lhs.frequency, rhs.negTotalDistance) <=> std::make_tuple(rhs.frequency, rhs.negTotalDistance);
 			}
-			return bestSoFar.label;
-		}
+		};
 
 	}
 
@@ -186,29 +178,30 @@ namespace iui {
 						return a.distance < b.distance;
 					}
 				);
+				candidates.resize(k);
 
 				double maxCandDist = 0.0;
 				for(int i=0; i<k; i++) {
 					maxCandDist = std::max(maxCandDist, candidates[i].distance);
 				}
 				if(maxCandDist > Epsilon) {
-					defaultSearchRadius = maxCandDist * 1.41;
+					defaultSearchRadius = maxCandDist * 2.0;
 				}
 
-				std::vector<TLabel> labels;
-				labels.reserve(k);
-
-				std::transform(
-					candidates.begin(),
-					candidates.begin()+k,
-					std::back_inserter(labels),
-					[](const Candidate& cand) {
-						return cand.label;
-					}
+				std::map<TLabel, detail::LabelScore<TLabel>> labelScoresMap;
+				for(auto& cand: candidates) {
+					detail::LabelScore<TLabel>& score = labelScoresMap[cand.label];
+					score.frequency += 1;
+					score.negTotalDistance -= cand.distance;
+					score.label = cand.label;
+				}
+				auto bestScore = std::max_element(
+					labelScoresMap.begin(),
+					labelScoresMap.end(),
+					labelScoresMap.value_comp()
 				);
 
-
-				auto result = detail::findMostCommonLabel(labels);
+				TLabel result = bestScore->second.label;
 
 				stats.pointsConsidered += kdTree_.numEntries();
 				stats.pointsSkipped += kdTree_.numEntries() - entriesVisited;

@@ -59,8 +59,8 @@ namespace iui {
 				Node* lchild;
 				Node* rchild;
 			};
+
 			Node* parent;
-			//HyperboxType hyperbox;
 			std::variant<std::span<const EntryType>, InnerNode> data;
 		};
 
@@ -74,8 +74,9 @@ namespace iui {
 			requires (std::is_convertible_v<std::ranges::range_value_t<TRange>, EntryType>)
 		explicit KDTree(TRange&& items, detail::KDTreeFromRangeTagT _ = {}) {
 			entries_ = RangeToVector(items);
-			rootHyperbox = HyperboxType::of(entries_ | std::views::transform([](const EntryType& e){return e.coord;}));
+			rootHyperbox_ = HyperboxType::of(entries_ | std::views::transform([](const EntryType& e){return e.coord;}));
 			rootNode_ = createNode(entries_, nullptr);
+			//printf("tree has %d kB\n", (sizeof(Node) * nodes_.size()) / 1024);
 		}
 
 		template<std::ranges::sized_range TRange>
@@ -96,7 +97,7 @@ namespace iui {
 
 		template<std::invocable<EntryType> FnT, std::invocable<HyperboxType> PredFnT>
 		void walk(FnT&& fn, PredFnT&& hboxPredicate) const {
-			HyperboxType hbox = rootHyperbox;
+			HyperboxType hbox = rootHyperbox_;
 			struct DataVisitor {
 				FnT fn;
 				PredFnT hboxPredicate;
@@ -204,7 +205,7 @@ namespace iui {
 			static std::mt19937_64 gen(std::random_device{}());
 			static constexpr double ViableScoreThreshold = 0.9;
 
-			for(int i=0; i<2.0 + 2.0 * std::log2(entries.size()); i++) {
+			for(int i=0; i<std::min<int>(NDims, 2.0 + 2.0 * std::log2(NDims)); i++) {
 				int axis = std::uniform_int_distribution<int>(0, NDims-1)(gen);
 				auto rec = trySplit(entries, axis);
 				if(rec.score > ViableScoreThreshold) {
@@ -279,12 +280,13 @@ namespace iui {
 			return &result;
 		}
 
-		HyperboxType rootHyperbox;
-		std::vector<EntryType> entries_;
+		HyperboxType rootHyperbox_;
 		std::deque<Node> nodes_;
+		std::vector<EntryType> entries_;
 		Node* rootNode_ {};
 	};
 
 }
 
 #endif //KDTREE_HPP
+
